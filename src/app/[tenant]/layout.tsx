@@ -13,14 +13,15 @@ export default async function TenantLayout({
 }: TenantLayoutProps) {
   const { tenant } = await params;
 
-  // TODO: Verify tenant existence via DB or API.
-  // if (!isValidTenant(tenant)) notFound();
+  // We should verify if this 'tenant' (which is the school code) exists.
+  // Ideally this happens in Middleware, but double check here.
+  // For MVP, we pass it down.
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Context Provider for Tenant ID could go here */}
+      {/* Context Provider for School ID could go here */}
       <div className="bg-slate-900 text-white p-2 text-xs text-center">
-        Tenant Context: {tenant}
+        School Context: {tenant}
       </div>
       {children}
     </div>

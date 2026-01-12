@@ -15,10 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { notFound } from "next/navigation";
 
-export default async function RolesPage({
+export default async function StudentsPage({
   params,
 }: {
   params: Promise<{ tenant: string }>;
@@ -37,75 +36,67 @@ export default async function RolesPage({
     notFound();
   }
 
-  // 2. Fetch Roles with Permission Counts
-  // Note: Supabase doesn't support 'count' in nested select easily without strict setup.
-  // We will fetch roles and then role_permissions. Or use 'role_permissions(count)' if supported.
-  // Workaround: Fetch roles and fetch all role_permissions for this school's roles.
-
-  // Fetch permissions count for these roles
-  // We utilize the nested select capability of Supabase
-  const { data: rolesWithPerms } = await supabase
-    .from("roles")
-    .select("*, role_permissions(permission_id)")
+  // 2. Fetch Students with Class and Section info
+  const { data: students } = await supabase
+    .from("students")
+    .select("*, class:classes(name), section:sections(name)")
     .eq("school_id", school.id);
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Roles & Permissions
-          </h2>
+          <h2 className="text-3xl font-bold tracking-tight">Students</h2>
           <p className="text-muted-foreground">
-            Manage access control for {school.name}.
+            Academic records for {school.name}.
           </p>
         </div>
-        <Button>Create Role</Button>
+        <Button>Admit Student</Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Defined Roles</CardTitle>
-          <CardDescription>Roles available in {school.name}</CardDescription>
+          <CardTitle>Enrolled Students</CardTitle>
+          <CardDescription>
+            Total {students?.length || 0} students found.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Role Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Permissions Count</TableHead>
+                <TableHead>Admission No</TableHead>
+                <TableHead>Full Name</TableHead>
+                <TableHead>Class</TableHead>
+                <TableHead>Section</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rolesWithPerms?.map((role) => (
-                <TableRow key={role.id}>
-                  <TableCell className="font-medium capitalize">
-                    {role.name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {role.description || "-"}
+              {students?.map((student) => (
+                <TableRow key={student.id}>
+                  <TableCell className="font-medium">
+                    {student.admission_no}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">
-                      {role.role_permissions?.length || 0} permissions
-                    </Badge>
+                    {student.first_name} {student.last_name}
                   </TableCell>
+                  <TableCell>{student.class?.name || "-"}</TableCell>
+                  <TableCell>{student.section?.name || "-"}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm">
-                      Edit
+                      View
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
-              {rolesWithPerms?.length === 0 && (
+              {!students?.length && (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="text-center h-24 text-muted-foreground"
                   >
-                    No roles defined.
+                    No students found.
                   </TableCell>
                 </TableRow>
               )}

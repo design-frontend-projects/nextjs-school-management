@@ -15,10 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { notFound } from "next/navigation";
+import { format } from "date-fns";
 
-export default async function RolesPage({
+export default async function ExamsPage({
   params,
 }: {
   params: Promise<{ tenant: string }>;
@@ -26,7 +26,7 @@ export default async function RolesPage({
   const { tenant } = await params;
   const supabase = await createClient();
 
-  // 1. Resolve School ID
+  // 1. Resolve School
   const { data: school } = await supabase
     .from("schools")
     .select("id, name")
@@ -37,75 +37,66 @@ export default async function RolesPage({
     notFound();
   }
 
-  // 2. Fetch Roles with Permission Counts
-  // Note: Supabase doesn't support 'count' in nested select easily without strict setup.
-  // We will fetch roles and then role_permissions. Or use 'role_permissions(count)' if supported.
-  // Workaround: Fetch roles and fetch all role_permissions for this school's roles.
-
-  // Fetch permissions count for these roles
-  // We utilize the nested select capability of Supabase
-  const { data: rolesWithPerms } = await supabase
-    .from("roles")
-    .select("*, role_permissions(permission_id)")
-    .eq("school_id", school.id);
+  // 2. Fetch Exams with Result Count
+  const { data: exams } = await supabase
+    .from("exams")
+    .select("*, exam_results(count)")
+    .eq("school_id", school.id)
+    .order("exam_date", { ascending: false });
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Roles & Permissions
-          </h2>
+          <h2 className="text-3xl font-bold tracking-tight">Exams</h2>
           <p className="text-muted-foreground">
-            Manage access control for {school.name}.
+            Examinations scheduled for {school.name}.
           </p>
         </div>
-        <Button>Create Role</Button>
+        <Button>Schedule Exam</Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Defined Roles</CardTitle>
-          <CardDescription>Roles available in {school.name}</CardDescription>
+          <CardTitle>Exam Schedule</CardTitle>
+          <CardDescription>Upcoming and past examinations.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Role Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Permissions Count</TableHead>
+                <TableHead>Exam Name</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Results Published</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rolesWithPerms?.map((role) => (
-                <TableRow key={role.id}>
-                  <TableCell className="font-medium capitalize">
-                    {role.name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {role.description || "-"}
+              {exams?.map((exam) => (
+                <TableRow key={exam.id}>
+                  <TableCell className="font-medium">{exam.name}</TableCell>
+                  <TableCell>
+                    {exam.exam_date
+                      ? format(new Date(exam.exam_date), "PPP")
+                      : "TBD"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">
-                      {role.role_permissions?.length || 0} permissions
-                    </Badge>
+                    {exam.exam_results?.[0]?.count || 0} entries
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm">
-                      Edit
+                      Manage
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
-              {rolesWithPerms?.length === 0 && (
+              {!exams?.length && (
                 <TableRow>
                   <TableCell
                     colSpan={4}
                     className="text-center h-24 text-muted-foreground"
                   >
-                    No roles defined.
+                    No exams found.
                   </TableCell>
                 </TableRow>
               )}

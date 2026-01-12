@@ -15,10 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { notFound } from "next/navigation";
 
-export default async function RolesPage({
+export default async function HRPage({
   params,
 }: {
   params: Promise<{ tenant: string }>;
@@ -26,7 +25,6 @@ export default async function RolesPage({
   const { tenant } = await params;
   const supabase = await createClient();
 
-  // 1. Resolve School ID
   const { data: school } = await supabase
     .from("schools")
     .select("id, name")
@@ -37,75 +35,66 @@ export default async function RolesPage({
     notFound();
   }
 
-  // 2. Fetch Roles with Permission Counts
-  // Note: Supabase doesn't support 'count' in nested select easily without strict setup.
-  // We will fetch roles and then role_permissions. Or use 'role_permissions(count)' if supported.
-  // Workaround: Fetch roles and fetch all role_permissions for this school's roles.
-
-  // Fetch permissions count for these roles
-  // We utilize the nested select capability of Supabase
-  const { data: rolesWithPerms } = await supabase
-    .from("roles")
-    .select("*, role_permissions(permission_id)")
+  // Fetch Staff with Profiles
+  const { data: staffList } = await supabase
+    .from("staff")
+    .select("*, profile:profiles(*)")
     .eq("school_id", school.id);
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Roles & Permissions
-          </h2>
+          <h2 className="text-3xl font-bold tracking-tight">HR & Payroll</h2>
           <p className="text-muted-foreground">
-            Manage access control for {school.name}.
+            Manage staff and salaries for {school.name}.
           </p>
         </div>
-        <Button>Create Role</Button>
+        <Button>Add Staff Member</Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Defined Roles</CardTitle>
-          <CardDescription>Roles available in {school.name}</CardDescription>
+          <CardTitle>Staff Directory</CardTitle>
+          <CardDescription>
+            {staffList?.length || 0} active staff members.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Role Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Permissions Count</TableHead>
+                <TableHead>Start Member</TableHead>
+                <TableHead>Designation</TableHead>
+                <TableHead>Base Salary</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rolesWithPerms?.map((role) => (
-                <TableRow key={role.id}>
-                  <TableCell className="font-medium capitalize">
-                    {role.name}
+              {staffList?.map((staff) => (
+                <TableRow key={staff.id}>
+                  <TableCell className="font-medium">
+                    {staff.profile?.full_name || "Unknown"}
+                    <div className="text-xs text-muted-foreground">
+                      {staff.profile?.email || "-"}
+                    </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {role.description || "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">
-                      {role.role_permissions?.length || 0} permissions
-                    </Badge>
-                  </TableCell>
+                  <TableCell>{staff.designation}</TableCell>
+                  <TableCell>${staff.base_salary}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm">
-                      Edit
+                      Payroll
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
-              {rolesWithPerms?.length === 0 && (
+              {!staffList?.length && (
                 <TableRow>
                   <TableCell
                     colSpan={4}
                     className="text-center h-24 text-muted-foreground"
                   >
-                    No roles defined.
+                    No staff records found.
                   </TableCell>
                 </TableRow>
               )}

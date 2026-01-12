@@ -1,3 +1,4 @@
+import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { notFound } from "next/navigation";
 
 export default async function UsersPage({
   params,
@@ -23,38 +25,70 @@ export default async function UsersPage({
   params: Promise<{ tenant: string }>;
 }) {
   const { tenant } = await params;
+  const supabase = await createClient();
 
-  // Mock Users Data
-  const users = [
-    {
-      id: "1",
-      name: "Alice Smith",
-      email: "alice@example.com",
-      role: "student",
-      status: "active",
-    },
-    {
-      id: "2",
-      name: "Bob Jones",
-      email: "bob@example.com",
-      role: "teacher",
-      status: "active",
-    },
-    {
-      id: "3",
-      name: "Charlie Brown",
-      email: "charlie@example.com",
-      role: "parent",
-      status: "invited",
-    },
-  ];
+  // 1. Resolve School ID from Tenant Code
+  const { data: school } = await supabase
+    .from("schools")
+    .select("id, name")
+    .eq("code", tenant)
+    .single();
+
+  if (!school) {
+    notFound();
+  }
+
+  // 2. Fetch School Users with Profiles
+  const { data: members, error: membersError } = await supabase
+    .from("school_users")
+    .select("*, profile:profiles(*)")
+    .eq("school_id", school.id);
+
+  if (membersError) {
+    console.error("Error fetching members:", membersError);
+  }
+
+  // 3. Fetch User Roles for this school
+  const { data: userRolesValues, error: rolesError } = await supabase
+    .from("user_roles")
+    .select("user_id, role:roles(name)")
+    .eq("school_id", school.id);
+
+  if (rolesError) {
+    console.error("Error fetching roles:", rolesError);
+  }
+
+  // 4. Merge Data
+  const users =
+    members?.map((m) => {
+      const roles = userRolesValues
+        ?.filter((ur) => ur.user_id === m.user_id)
+        .map(
+          (ur: unknown) =>
+            (ur as { role?: { name: string } }).role?.name || "Unknown"
+        );
+
+      // Fallback for null profile
+      const profile = m.profile || { email: "Unknown", full_name: "Unknown" };
+
+      return {
+        id: m.user_id,
+        name: profile.full_name || "N/A",
+        email: profile.email,
+        roles: roles?.length ? roles : ["member"],
+        status: m.is_active ? "active" : "inactive",
+        joined_at: m.joined_at,
+      };
+    }) || [];
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Users</h2>
-          <p className="text-muted-foreground">Manage users for {tenant}.</p>
+          <p className="text-muted-foreground">
+            Manage users for {school.name}.
+          </p>
         </div>
         <div className="gap-2 flex">
           <Button variant="outline">Invite User</Button>
@@ -76,7 +110,7 @@ export default async function UsersPage({
                 <TableHead className="w-[80px]">Avatar</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>Roles</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -95,9 +129,13 @@ export default async function UsersPage({
                   <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {user.role}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {user.roles.map((r: string) => (
+                        <Badge key={r} variant="outline" className="capitalize">
+                          {r}
+                        </Badge>
+                      ))}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -115,6 +153,16 @@ export default async function UsersPage({
                   </TableCell>
                 </TableRow>
               ))}
+              {users.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="text-center h-24 text-muted-foreground"
+                  >
+                    No users found.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

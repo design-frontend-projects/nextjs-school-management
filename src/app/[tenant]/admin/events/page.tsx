@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { notFound } from "next/navigation";
+import { format } from "date-fns";
 
-export default async function RolesPage({
+export default async function EventsPage({
   params,
 }: {
   params: Promise<{ tenant: string }>;
@@ -26,7 +27,6 @@ export default async function RolesPage({
   const { tenant } = await params;
   const supabase = await createClient();
 
-  // 1. Resolve School ID
   const { data: school } = await supabase
     .from("schools")
     .select("id, name")
@@ -37,59 +37,49 @@ export default async function RolesPage({
     notFound();
   }
 
-  // 2. Fetch Roles with Permission Counts
-  // Note: Supabase doesn't support 'count' in nested select easily without strict setup.
-  // We will fetch roles and then role_permissions. Or use 'role_permissions(count)' if supported.
-  // Workaround: Fetch roles and fetch all role_permissions for this school's roles.
-
-  // Fetch permissions count for these roles
-  // We utilize the nested select capability of Supabase
-  const { data: rolesWithPerms } = await supabase
-    .from("roles")
-    .select("*, role_permissions(permission_id)")
-    .eq("school_id", school.id);
+  const { data: events } = await supabase
+    .from("events")
+    .select("*")
+    .eq("school_id", school.id)
+    .order("event_date", { ascending: true });
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Roles & Permissions
-          </h2>
-          <p className="text-muted-foreground">
-            Manage access control for {school.name}.
-          </p>
+          <h2 className="text-3xl font-bold tracking-tight">Events</h2>
+          <p className="text-muted-foreground">School calendar and holidays.</p>
         </div>
-        <Button>Create Role</Button>
+        <Button>Create Event</Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Defined Roles</CardTitle>
-          <CardDescription>Roles available in {school.name}</CardDescription>
+          <CardTitle>Upcoming Events</CardTitle>
+          <CardDescription>All scheduled activities.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Role Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Permissions Count</TableHead>
+                <TableHead>Event Title</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rolesWithPerms?.map((role) => (
-                <TableRow key={role.id}>
-                  <TableCell className="font-medium capitalize">
-                    {role.name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {role.description || "-"}
+              {events?.map((event) => (
+                <TableRow key={event.id}>
+                  <TableCell className="font-medium">{event.title}</TableCell>
+                  <TableCell>
+                    {event.event_date
+                      ? format(new Date(event.event_date), "PPP")
+                      : "TBD"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">
-                      {role.role_permissions?.length || 0} permissions
+                    <Badge variant="outline" className="capitalize">
+                      {event.type}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -99,13 +89,13 @@ export default async function RolesPage({
                   </TableCell>
                 </TableRow>
               ))}
-              {rolesWithPerms?.length === 0 && (
+              {!events?.length && (
                 <TableRow>
                   <TableCell
                     colSpan={4}
                     className="text-center h-24 text-muted-foreground"
                   >
-                    No roles defined.
+                    No events found.
                   </TableCell>
                 </TableRow>
               )}

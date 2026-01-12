@@ -1,7 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default async function SelectTenantPage() {
@@ -14,32 +20,40 @@ export default async function SelectTenantPage() {
     redirect("/login");
   }
 
-  // TODO: Fetch real tenants from DB
-  // const { data: memberships } = await supabase.from('tenant_users').select('*, tenant:tenants(*)').eq('user_id', user.id);
+  // Fetch real schools from DB
+  const { data: memberships } = await supabase
+    .from("school_users")
+    .select("*, school:schools(*)")
+    .eq("user_id", user.id);
 
-  // Mock Data for MVP visualization
-  const mockTenants = [
-    { id: "1", name: "Springfield High", slug: "springfield" },
-    { id: "2", name: "Shelbyville Elementary", slug: "shelbyville" },
-  ];
+  // If no schools, maybe redirect to a "Join School" page or show empty state?
+  // For MVP, if they have no school, just show empty.
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle className="text-center">Select Your School</CardTitle>
+          <CardDescription className="text-center">
+            You are a member of the following schools.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {mockTenants.map((t) => (
-            <Link key={t.id} href={`/${t.slug}/client/dashboard`}>
+          {memberships?.map((m) => (
+            <Link key={m.school.id} href={`/${m.school.code}/client/dashboard`}>
               <Button
                 variant="outline"
                 className="w-full h-16 text-lg justify-start px-6"
               >
-                {t.name}
+                {m.school.name}
               </Button>
             </Link>
           ))}
+          {(!memberships || memberships.length === 0) && (
+            <div className="text-center text-gray-500">
+              No schools found. Please contact your administrator.
+            </div>
+          )}
           <div className="text-center mt-4 text-sm text-gray-500">
             Don&apos;t see your school? Contact support.
           </div>

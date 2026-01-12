@@ -15,10 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { notFound } from "next/navigation";
 
-export default async function RolesPage({
+export default async function ClassesPage({
   params,
 }: {
   params: Promise<{ tenant: string }>;
@@ -26,7 +25,6 @@ export default async function RolesPage({
   const { tenant } = await params;
   const supabase = await createClient();
 
-  // 1. Resolve School ID
   const { data: school } = await supabase
     .from("schools")
     .select("id, name")
@@ -37,60 +35,44 @@ export default async function RolesPage({
     notFound();
   }
 
-  // 2. Fetch Roles with Permission Counts
-  // Note: Supabase doesn't support 'count' in nested select easily without strict setup.
-  // We will fetch roles and then role_permissions. Or use 'role_permissions(count)' if supported.
-  // Workaround: Fetch roles and fetch all role_permissions for this school's roles.
-
-  // Fetch permissions count for these roles
-  // We utilize the nested select capability of Supabase
-  const { data: rolesWithPerms } = await supabase
-    .from("roles")
-    .select("*, role_permissions(permission_id)")
+  // Fetch Classes with Section count
+  const { data: classes } = await supabase
+    .from("classes")
+    .select("*, sections(count)")
     .eq("school_id", school.id);
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Roles & Permissions
-          </h2>
+          <h2 className="text-3xl font-bold tracking-tight">Classes</h2>
           <p className="text-muted-foreground">
-            Manage access control for {school.name}.
+            Academic structure for {school.name}.
           </p>
         </div>
-        <Button>Create Role</Button>
+        <Button>Add Class</Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Defined Roles</CardTitle>
-          <CardDescription>Roles available in {school.name}</CardDescription>
+          <CardTitle>Classes & Sections</CardTitle>
+          <CardDescription>Manage grade levels and sections.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Role Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Permissions Count</TableHead>
+                <TableHead>Class Name</TableHead>
+                <TableHead>Sections</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rolesWithPerms?.map((role) => (
-                <TableRow key={role.id}>
-                  <TableCell className="font-medium capitalize">
-                    {role.name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {role.description || "-"}
-                  </TableCell>
+              {classes?.map((cls) => (
+                <TableRow key={cls.id}>
+                  <TableCell className="font-medium">{cls.name}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">
-                      {role.role_permissions?.length || 0} permissions
-                    </Badge>
+                    {cls.sections?.[0]?.count || 0} sections
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm">
@@ -99,13 +81,13 @@ export default async function RolesPage({
                   </TableCell>
                 </TableRow>
               ))}
-              {rolesWithPerms?.length === 0 && (
+              {!classes?.length && (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={3}
                     className="text-center h-24 text-muted-foreground"
                   >
-                    No roles defined.
+                    No classes defined.
                   </TableCell>
                 </TableRow>
               )}

@@ -1,23 +1,23 @@
 import { create } from "zustand";
 import { Role, Permission } from "@/lib/rbac/definitions";
 
-interface TenantState {
-  tenantId: string | null;
-  tenantName: string | null;
+export interface TenantState {
+  schoolId: string | null;
+  schoolName: string | null;
   userRole: Role | null;
   permissions: Permission[];
-  setTenant: (id: string, name: string) => void;
+  setSchool: (id: string, name: string) => void;
   setUserRole: (role: Role, perms: Permission[]) => void;
   reset: () => void;
 }
 
 export const useTenantStore = create<TenantState>((set) => ({
-  tenantId: null,
-  tenantName: null,
+  schoolId: null,
+  schoolName: null,
   userRole: null,
   permissions: [],
-  setTenant: (id, name) => set({ tenantId: id, tenantName: name }),
+  setSchool: (id, name) => set({ schoolId: id, schoolName: name }),
   setUserRole: (role, perms) => set({ userRole: role, permissions: perms }),
   reset: () =>
-    set({ tenantId: null, tenantName: null, userRole: null, permissions: [] }),
+    set({ schoolId: null, schoolName: null, userRole: null, permissions: [] }),
 }));
