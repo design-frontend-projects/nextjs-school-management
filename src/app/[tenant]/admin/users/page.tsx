@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { notFound } from "next/navigation";
+import { CreateUserDialog } from "./create-user-dialog";
 
 export default async function UsersPage({
   params,
@@ -92,7 +93,7 @@ export default async function UsersPage({
         </div>
         <div className="gap-2 flex">
           <Button variant="outline">Invite User</Button>
-          <Button>Add User</Button>
+          <CreateUserDialog tenantId={school?.id} />
         </div>
       </div>
 

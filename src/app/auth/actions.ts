@@ -4,36 +4,41 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export async function login(formData: FormData) {
+export async function loginWithOtp(formData: FormData) {
   const supabase = await createClient();
-
-  // Type-casting for simplicity, should validate with Zod
   const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signInWithOtp({
     email,
-    password,
+    options: {
+      shouldCreateUser: false, // Login only
+    },
   });
 
   if (error) {
     return { error: error.message };
-    // In a real app, we'd return state to display error
-    // For now, redirect or throw
-    // redirect('/login?error=' + error.message)
   }
 
-  // Active Tenant Resolution
-  // 1. Fetch user's tenants
-  // 2. If 1 -> Redirect to /slug/dashboard
-  // 3. If Many -> Redirect to /select-tenant
-  // For MVP, simplistic redirect:
+  return { success: true, message: "OTP sent to your email" };
+}
 
-  // TODO: Fetch user profile and tenants
-  // const { data: profile } = await supabase...
+export async function verifyOtp(formData: FormData) {
+  const supabase = await createClient();
+  const email = formData.get("email") as string;
+  const token = formData.get("otp") as string;
+
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "email",
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
 
   revalidatePath("/", "layout");
-  redirect("/select-tenant"); // Placeholder
+  redirect("/select-tenant");
 }
 
 export async function signup(formData: FormData) {
@@ -41,7 +46,12 @@ export async function signup(formData: FormData) {
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
   const fullName = formData.get("fullName") as string;
+
+  if (password !== confirmPassword) {
+    return { error: "Passwords do not match" };
+  }
 
   const { error } = await supabase.auth.signUp({
     email,
